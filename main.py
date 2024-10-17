@@ -1,3 +1,4 @@
+import pyperclip
 import pyaudio
 import wave
 import whisper
@@ -76,6 +77,14 @@ with open(TRANSCRIPTION_OUTPUT_FILENAME, 'w') as f:
     f.write(result["text"])
 
 print(f"Transcription saved to {TRANSCRIPTION_OUTPUT_FILENAME}")
+
+
+# Copy the transcription to clipboard
+with open(TRANSCRIPTION_OUTPUT_FILENAME, 'r') as f:
+    transcription_text = f.read()
+
+pyperclip.copy(transcription_text)
+print("Transcription copied to clipboard!")
 
 # Clean up: remove the WAV file if you no longer need it
 os.remove(WAVE_OUTPUT_FILENAME)

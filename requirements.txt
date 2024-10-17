@@ -28,6 +28,7 @@ nvidia-nvtx-cu12==12.4.127
 openai-whisper==20240930
 PyAudio==0.2.14
 pycparser==2.22
+pyperclip==1.9.0
 regex==2024.9.11
 requests==2.32.3
 six==1.16.0
