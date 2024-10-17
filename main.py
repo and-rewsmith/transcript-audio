@@ -9,11 +9,10 @@ import sys
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-
-# if torch.cuda.is_available():
-#     print("Using GPU:", torch.cuda.get_device_name(0))
-# else:
-#     print("Using CPU")
+if torch.cuda.is_available():
+    print("Using GPU:", torch.cuda.get_device_name(0))
+else:
+    print("Using CPU")
 
 # Global flag to control when to stop recording
 stop_recording = False
@@ -33,14 +32,10 @@ CHANNELS = 1
 RATE = 44100
 CHUNK = 1024
 WAVE_OUTPUT_FILENAME = "output.wav"
+TRANSCRIPTION_OUTPUT_FILENAME = "transcription.txt"
 
 # Initialize PyAudio
 audio = pyaudio.PyAudio()
-
-# # List available input devices
-# for i in range(audio.get_device_count()):
-#     info = audio.get_device_info_by_index(i)
-#     print(f"Device {i}: {info['name']}")
 
 # Open a stream on the first available input device
 stream = audio.open(format=FORMAT, channels=CHANNELS,
@@ -51,11 +46,11 @@ print("Recording...")
 
 frames = []
 
-# Start the thread that listens for the 'p' key press
+# Start the thread that listens for the 'Enter' key press
 listener_thread = threading.Thread(target=listen_for_stop_key)
 listener_thread.start()
 
-# Record audio until 'p' is pressed
+# Record audio until 'Enter' is pressed
 while not stop_recording:
     data = stream.read(CHUNK)
     frames.append(data)
@@ -72,16 +67,15 @@ with wave.open(WAVE_OUTPUT_FILENAME, 'wb') as wf:
     wf.setframerate(RATE)
     wf.writeframes(b''.join(frames))
 
-# print(f"Saved recording to {WAVE_OUTPUT_FILENAME}")
-
-# Transcribe the audio using OpenAI Whisper
-# print("Transcribing audio with Whisper...")
-model = whisper.load_model("base")  # You can change this to "tiny", "small", "medium", or "large"
+# Load Whisper model and transcribe audio
+model = whisper.load_model("base", device="cuda")  # You can change this to "tiny", "small", "medium", or "large"
 result = model.transcribe(WAVE_OUTPUT_FILENAME)
 
-# Print the transcription result
-print("Transcription:")
-print(result["text"])
+# Write the transcription result to a file
+with open(TRANSCRIPTION_OUTPUT_FILENAME, 'w') as f:
+    f.write(result["text"])
+
+print(f"Transcription saved to {TRANSCRIPTION_OUTPUT_FILENAME}")
 
 # Clean up: remove the WAV file if you no longer need it
 os.remove(WAVE_OUTPUT_FILENAME)
