@@ -8,6 +8,14 @@ import torch
 import warnings
 import sys
 
+WAVE_OUTPUT_FILENAME = "output.wav"
+
+# Clean up: remove the WAV file if you no longer need it
+try:
+    os.remove(WAVE_OUTPUT_FILENAME)
+except:
+    pass
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 if torch.cuda.is_available():
@@ -32,7 +40,6 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
 CHUNK = 1024
-WAVE_OUTPUT_FILENAME = "output.wav"
 TRANSCRIPTION_OUTPUT_FILENAME = "transcription.txt"
 
 # Initialize PyAudio
@@ -85,6 +92,3 @@ with open(TRANSCRIPTION_OUTPUT_FILENAME, 'r') as f:
 
 pyperclip.copy(transcription_text)
 print("Transcription copied to clipboard!")
-
-# Clean up: remove the WAV file if you no longer need it
-os.remove(WAVE_OUTPUT_FILENAME)
