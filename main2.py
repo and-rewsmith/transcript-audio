@@ -8,9 +8,13 @@ import torch
 import warnings
 import time
 from pynput import keyboard
+from playsound import playsound  # Add this for playing beep sounds
 
 WAVE_OUTPUT_FILENAME = "output.wav"
 TRANSCRIPTION_OUTPUT_FILENAME = "transcription.txt"
+START_BEEP_FILENAME = "beep-06.wav"  # Audio file for start beep
+STOP_BEEP_FILENAME = "beep-08b.wav"    # Audio file for stop beep
+COPY_BEEP_FILENAME = "beep-24.wav"    # Audio file for copy-to-clipboard beep
 
 # Clean up: remove the WAV file if you no longer need it
 try:
@@ -43,6 +47,9 @@ audio = pyaudio.PyAudio()
 def record_and_transcribe():
     global recording, stop_recording
 
+    # Play start beep
+    playsound(START_BEEP_FILENAME)
+
     # Open a stream on the first available input device
     stream = audio.open(format=FORMAT, channels=CHANNELS,
                         rate=RATE, input=True,
@@ -58,6 +65,9 @@ def record_and_transcribe():
     # Stop and close the stream
     stream.stop_stream()
     stream.close()
+
+    # Play stop beep
+    playsound(STOP_BEEP_FILENAME)
 
     # Save the recorded data as a WAV file
     with wave.open(WAVE_OUTPUT_FILENAME, 'wb') as wf:
@@ -83,6 +93,9 @@ def record_and_transcribe():
         transcription_text = f.read()
     pyperclip.copy(transcription_text)
     print("Transcription copied to clipboard!")
+
+    # Play copy-to-clipboard beep
+    playsound(COPY_BEEP_FILENAME)
 
     # Reset flags for the next round
     recording = False
@@ -119,14 +132,14 @@ def on_press(key):
         # Remove key presses older than 1 second
         key_presses = [t for t in key_presses if current_time - t < 1]
 
-        # Check if there were 4 "a" presses within the last second
+        # Check if there were 3 ";" presses within the last second
         if len(key_presses) >= 3:
             toggle_recording()
             key_presses = []  # Reset after triggering
 
 
 # Start listening to the hotkey pattern
-print("Listening for 'a' pressed 4 times in rapid succession to start/stop recording...")
+print("Listening for ';' pressed 3 times in rapid succession to start/stop recording...")
 with keyboard.Listener(on_press=on_press) as listener:
     listener.join()  # Keep the listener running indefinitely
 
