@@ -133,13 +133,13 @@ def on_press(key):
         key_presses = [t for t in key_presses if current_time - t < 1]
 
         # Check if there were 3 ";" presses within the last second
-        if len(key_presses) >= 3:
+        if len(key_presses) >= 2:
             toggle_recording()
             key_presses = []  # Reset after triggering
 
 
 # Start listening to the hotkey pattern
-print("Listening for ';' pressed 3 times in rapid succession to start/stop recording...")
+print("Listening for ';' pressed 2 times in rapid succession to start/stop recording...")
 with keyboard.Listener(on_press=on_press) as listener:
     listener.join()  # Keep the listener running indefinitely
 
