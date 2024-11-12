@@ -101,8 +101,6 @@ def record_and_transcribe():
     recording = False
     stop_recording = False
 
-# Function to handle the keystroke toggle based on rapid "a" presses
-
 
 def toggle_recording():
     global recording, stop_recording
@@ -116,8 +114,6 @@ def toggle_recording():
     else:
         # Stop recording
         stop_recording = True
-
-# Function to handle key presses
 
 
 def on_press(key):
