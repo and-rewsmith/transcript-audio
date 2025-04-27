@@ -5,9 +5,10 @@ import os
 import threading
 import warnings
 import time
+import select
 from openai import OpenAI
-from pynput import keyboard
 from playsound import playsound
+from evdev import InputDevice, categorize, ecodes, list_devices
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -111,26 +112,40 @@ def toggle_recording():
         stop_recording = True
 
 
-def on_press(key):
-    global key_presses
+# Find keyboard input device
+devices = [InputDevice(path) for path in list_devices()]
+keyboard = None
+for device in devices:
+    if "keyboard" in device.name.lower() or "kbd" in device.name.lower():
+        keyboard = device
+        break
 
-    if key == keyboard.KeyCode(char=';'):
-        current_time = time.time()
-        key_presses.append(current_time)
+if not keyboard:
+    raise RuntimeError("No keyboard device found. You may need sudo or adjust udev permissions.")
 
-        key_presses = [t for t in key_presses if current_time - t < 1]
+print(f"Listening for ';' pressed 2 times in rapid succession to start/stop recording (device: {keyboard.path})...")
 
-        if len(key_presses) >= 2:
-            toggle_recording()
-            key_presses = []
+# try:
+#     keyboard.grab()  # Optional: exclusively capture events
+# except Exception as e:
+#     print(f"Warning: couldn't grab device exclusively: {e}")
 
-
-print("Listening for ';' pressed 2 times in rapid succession to start/stop recording...")
-listener = keyboard.Listener(on_press=on_press)
-listener.start()
-
+# Main loop to detect key presses
 try:
-    listener.join()
+    while True:
+        r, _, _ = select.select([keyboard.fd], [], [])
+        for fd in r:
+            for event in keyboard.read():
+                if event.type == ecodes.EV_KEY:
+                    key_event = categorize(event)
+                    if key_event.keystate == key_event.key_down:
+                        if key_event.keycode == 'KEY_SEMICOLON':
+                            current_time = time.time()
+                            key_presses.append(current_time)
+                            key_presses = [t for t in key_presses if current_time - t < 1]
+                            if len(key_presses) >= 2:
+                                toggle_recording()
+                                key_presses = []
 except KeyboardInterrupt:
     print("\nShutting down gracefully...")
 finally:
