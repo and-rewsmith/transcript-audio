@@ -112,40 +112,84 @@ def toggle_recording():
         stop_recording = True
 
 
-# Find keyboard input device
+# Find ALL keyboard input devices (not just the first one)
 devices = [InputDevice(path) for path in list_devices()]
-keyboard = None
+keyboards = []
+
+# Exclude non-keyboard devices
+exclude_keywords = ['mouse', 'trackpad', 'touchpad', 'touch', 'pointer']
+
 for device in devices:
-    if "keyboard" in device.name.lower() or "kbd" in device.name.lower():
-        keyboard = device
-        break
+    try:
+        caps = device.capabilities()
+        # Check if device has keyboard capabilities
+        if ecodes.EV_KEY in caps:
+            device_name_lower = device.name.lower()
+            # Skip if it's clearly not a keyboard
+            if any(keyword in device_name_lower for keyword in exclude_keywords):
+                continue
+            
+            # Check if it has typical keyboard keys to confirm it's a keyboard
+            key_codes = caps.get(ecodes.EV_KEY, [])
+            if any(key in key_codes for key in [ecodes.KEY_A, ecodes.KEY_SPACE, ecodes.KEY_ENTER]):
+                keyboards.append(device)
+    except (OSError, PermissionError) as e:
+        # Skip devices we can't access (might need permissions)
+        print(f"Warning: Could not access device {device.path}: {e}")
+        continue
 
-if not keyboard:
-    raise RuntimeError("No keyboard device found. You may need sudo or adjust udev permissions.")
+if not keyboards:
+    print("No keyboard devices found. Attempting to list all input devices...")
+    all_devices = [InputDevice(path) for path in list_devices()]
+    print("Available input devices:")
+    for dev in all_devices:
+        try:
+            print(f"  - {dev.name} ({dev.path})")
+        except:
+            pass
+    raise RuntimeError("No keyboard device found. You may need to add your user to the 'input' group: sudo usermod -aG input $USER")
 
-print(f"Listening for ';' pressed 2 times in rapid succession to start/stop recording (device: {keyboard.path})...")
+# Use all keyboard devices so USB keyboards work
+print(f"Found {len(keyboards)} keyboard device(s):")
+for kb in keyboards:
+    print(f"  - {kb.name} ({kb.path})")
 
-# try:
-#     keyboard.grab()  # Optional: exclusively capture events
-# except Exception as e:
-#     print(f"Warning: couldn't grab device exclusively: {e}")
+print("\nListening for ';' pressed 2 times in rapid succession to start/stop recording...")
 
-# Main loop to detect key presses
+# Main loop to detect key presses from ALL keyboards
 try:
     while True:
-        r, _, _ = select.select([keyboard.fd], [], [])
+        # Use select to wait for input on any keyboard
+        fds = [kb.fd for kb in keyboards]
+        r, _, _ = select.select(fds, [], [])
+        
         for fd in r:
-            for event in keyboard.read():
-                if event.type == ecodes.EV_KEY:
-                    key_event = categorize(event)
-                    if key_event.keystate == key_event.key_down:
-                        if key_event.keycode == 'KEY_SEMICOLON':
-                            current_time = time.time()
-                            key_presses.append(current_time)
-                            key_presses = [t for t in key_presses if current_time - t < 1]
-                            if len(key_presses) >= 2:
-                                toggle_recording()
-                                key_presses = []
+            # Find which keyboard this fd belongs to
+            keyboard = next(kb for kb in keyboards if kb.fd == fd)
+            try:
+                for event in keyboard.read():
+                    if event.type == ecodes.EV_KEY:
+                        key_event = categorize(event)
+                        if key_event.keystate == key_event.key_down:
+                            # Handle keycode as string, list, or tuple
+                            keycode = key_event.keycode
+                            is_semicolon = False
+                            
+                            if isinstance(keycode, (list, tuple)):
+                                is_semicolon = 'KEY_SEMICOLON' in keycode
+                            else:
+                                is_semicolon = keycode == 'KEY_SEMICOLON'
+                            
+                            if is_semicolon:
+                                current_time = time.time()
+                                key_presses.append(current_time)
+                                key_presses = [t for t in key_presses if current_time - t < 1]
+                                if len(key_presses) >= 2:
+                                    toggle_recording()
+                                    key_presses = []
+            except OSError:
+                # Device might have been disconnected, skip it
+                continue
 except KeyboardInterrupt:
     print("\nShutting down gracefully...")
 finally:
